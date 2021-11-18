@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use actix_web::rt::time::Instant;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::*;
@@ -38,7 +37,7 @@ impl User {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Message {
     from: Id,
     data: String,
@@ -56,7 +55,6 @@ pub struct Room {
     pub id: Id,
     pub users: HashMap<Id, u64>,
     pub messages: Vec<(Message, u64)>,
-    pub last_message_time: u64,
 }
 
 impl Room {
@@ -65,10 +63,9 @@ impl Room {
         ROOMS.write().unwrap().insert(
             id,
             Room {
-                id: get_room_id(),
+                id: id,
                 users: HashMap::new(),
                 messages: vec![],
-                last_message_time: 0,
             },
         );
         id
