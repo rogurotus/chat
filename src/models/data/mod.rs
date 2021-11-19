@@ -63,7 +63,7 @@ impl Room {
         ROOMS.lock().unwrap().insert(
             id,
             Room {
-                id: id,
+                id,
                 users: HashMap::new(),
                 messages: vec![],
             },
