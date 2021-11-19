@@ -1,10 +1,11 @@
 use super::data::Id;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct EnterRoomReq {
     pub user: Id,
     pub room: Id,
+    pub old_room: Id,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

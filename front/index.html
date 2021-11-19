@@ -5,34 +5,70 @@
     <body>
         <script>
             var xhr = new XMLHttpRequest();
+            xhr.onload = function() 
+                {
+                    if ( xhr.status == 200)
+                    {
+                        user_id = xhr.responseText;
+                        var a = document.createElement('div');
+                        a.innerHTML = "Ваш id: " + user_id;
+                        document.body.append(a);
+                    }
+                };
             xhr.open("GET", "/User", false);
             xhr.send();
-            var user_id = xhr.responseText;
-            var room_id;
-            var a = document.createElement('div');
-            a.innerHTML = "Ваш id: " + user_id;
-            document.body.append(a);
+            var user_id;
+            var room_id = 0;
+            var old_room = 0;
+            var timerId;
 
             function create_room() 
             {
+                xhr.onload = function() 
+                {
+                    if ( xhr.status == 200)
+                    {
+                        var a = document.createElement('div');
+                        a.innerHTML = "id Комнаты: " + xhr.responseText;
+                        document.body.append(a);
+                    }
+                };
                 xhr.open("POST", "/CreateRoom", false);
                 xhr.send();
-                room_id = xhr.responseText;
-                var a = document.createElement('div');
-                a.innerHTML = "id Комнаты: " + room_id;
-                document.body.append(a);
 
+
+            }
+
+            function enter_room()
+            {
+                var _room_id = Number(document.getElementsByName("join_room")[0].value)
+                xhr.onload = function() 
+                {
+                    if ( xhr.status == 200)
+                    {
+                        old_room = room_id;
+                        room_id = _room_id;
+                        timerId = setInterval(() => get_messages(), 2000);
+                        var a = document.createElement('div');
+                        a.innerHTML = "Вы в комнате " + room_id;
+                        document.body.append(a);
+                    }
+                };
                 xhr.open("POST", "/EnterRoom");
                 xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-                xhr.send(JSON.stringify({"user": Number(user_id), "room": Number(room_id)}));
+                xhr.send(JSON.stringify({"user": Number(user_id), "room": Number(_room_id), "old_room": Number(old_room)}));
 
-                alert(xhr.status);
+
+
+                
             }
 
             function send_message() 
             {
+                xhr.onload = function() {};
                 xhr.open("POST", "/SendMessage");
                 xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+                
                 var text = document.getElementsByName("inp")[0];
                 var val = text.value;
                 xhr.send(JSON.stringify({"user": Number(user_id), "room": Number(room_id), "data": val}));
@@ -42,24 +78,34 @@
             {
                 if( room_id != null)
                 {
+                    xhr.onload = function() 
+                    {
+                        if ( xhr.status == 200)
+                        {
+                            var nMessages = xhr.responseText;
+                            var arr_from_json = JSON.parse( nMessages );
+                            arr_from_json.forEach(element => {
+                                var a = document.createElement('div');
+                                a.innerHTML = "id: " + element.from + " -- " + element.data;
+                                document.body.append(a);
+                            });
+                        }
+                    };
                     xhr.open("POST", "/Messages", false);
                     xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
                     xhr.send(JSON.stringify({"user": Number(user_id), "room": Number(room_id)}));
-                    var nMessages = xhr.responseText;
-                    var arr_from_json = JSON.parse( nMessages );
-                    arr_from_json.forEach(element => {
-                        var a = document.createElement('div');
-                        a.innerHTML = "id: " + element.from + " -- " + element.data;
-                        document.body.append(a);
-                    });
+
+
                 }
             }
 
-            let timerId = setInterval(() => get_messages(), 2000);
         </script>
         <button name="Croom" onclick="create_room()">создать комнату</button>
         <input name = inp>
         <button name="Smsg" onclick="send_message()">Отправить</button>
+        <input name = join_room type="number">
+        <button name="jr" onclick="enter_room()">Войти</button>
+        
 
     </body>
 </html>

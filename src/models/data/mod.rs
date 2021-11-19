@@ -3,9 +3,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::*;
-use std::sync::RwLock;
-use std::time::Duration;
-use std::time::SystemTime;
+use std::sync::Mutex;
+
+
 
 pub type Id = usize;
 
@@ -21,8 +21,8 @@ fn get_room_id() -> Id {
 
 use lazy_static::*;
 lazy_static! {
-    pub static ref ROOMS: RwLock<HashMap<Id, Room>> = RwLock::new(HashMap::new());
-    pub static ref USERS: RwLock<HashMap<Id, User>> = RwLock::new(HashMap::new());
+    pub static ref ROOMS: Mutex<HashMap<Id, Room>> = Mutex::new(HashMap::new());
+    pub static ref USERS: Mutex<HashMap<Id, User>> = Mutex::new(HashMap::new());
 }
 
 #[derive(Serialize, Deserialize)]
@@ -32,7 +32,7 @@ pub struct User {
 impl User {
     pub fn new() -> Id {
         let id = get_user_id();
-        USERS.write().unwrap().insert(id, User { id });
+        USERS.lock().unwrap().insert(id, User { id });
         id
     }
 }
@@ -60,7 +60,7 @@ pub struct Room {
 impl Room {
     pub fn new() -> Id {
         let id = get_room_id();
-        ROOMS.write().unwrap().insert(
+        ROOMS.lock().unwrap().insert(
             id,
             Room {
                 id: id,
@@ -73,5 +73,8 @@ impl Room {
 
     pub fn add_user(&mut self, user_id: Id) {
         self.users.insert(user_id, 0);
+    }
+    pub fn rm_user(&mut self, user_id: Id) {
+        self.users.remove(&user_id);
     }
 }

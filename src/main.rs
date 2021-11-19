@@ -3,11 +3,11 @@ extern crate lazy_static;
 pub mod models;
 
 use actix_files::NamedFile;
-use actix_web::dev::Path;
+
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder, Result};
 use models::data::*;
 use models::request::*;
-use std::path::PathBuf;
+
 use std::time::SystemTime;
 
 #[get("/User")]
@@ -22,29 +22,33 @@ async fn create_room() -> impl Responder {
 
 #[post("/EnterRoom")]
 async fn enter_room(req: web::Json<EnterRoomReq>) -> impl Responder {
-    let res = USERS.write().unwrap().get_mut(&req.user).and_then(|u| {
-        ROOMS.write().unwrap().get_mut(&req.room).map(|r| {
-            r.add_user(u.id);
-        })
-    });
-
-    if let None = res {
-        return HttpResponse::NotFound().body("not found");
+    let mut lock = ROOMS.lock().unwrap();
+    if let Some(r) = lock.get_mut(&req.old_room)
+    {
+        r.rm_user(req.user);
     }
-    HttpResponse::Ok().body("Good")
+
+    if let Some(r) = lock.get_mut(&req.room)
+    {
+        r.add_user(req.user);
+        HttpResponse::Ok().body("")
+    }
+    else 
+    {
+        return HttpResponse::NotFound().body("not found room")
+    }
+    
 }
 
 #[post("/SendMessage")]
 async fn send_message(req: web::Json<SendMessageReq>) -> impl Responder {
-    println!("{:?}", req);
     let req = req.into_inner();
     let msg = Message::new(req.user, req.data);
-    ROOMS.write().unwrap().get_mut(&req.room).map(|r| {
+    ROOMS.lock().unwrap().get_mut(&req.room).map(|r| {
         let time = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        println!("{:?}", (&msg, &time));
         r.messages.push((msg, time));
     });
     HttpResponse::Ok().body("Good")
@@ -52,29 +56,30 @@ async fn send_message(req: web::Json<SendMessageReq>) -> impl Responder {
 
 #[post("/Messages")]
 async fn get_messages(req: web::Json<GetMessageReq>) -> impl Responder {
-    let msgs = ROOMS
-        .write()
-        .and_then(|mut a| {
-            let r = a.get_mut(&req.room).unwrap();
-            let time_user = r.users.get(&req.user).unwrap();
+    let mut rooms = ROOMS.lock().unwrap();
+    let r = match rooms.get_mut(&req.room) {
+        Some(a) => a,
+        None => return HttpResponse::NotFound().body("not found room"),
+    };
 
-            let msgs = r
-                .messages
-                .iter()
-                .filter(|(_, t)| t > time_user)
-                .map(|(msg, _)| msg.clone())
-                .collect::<Vec<Message>>();
+    let time_user = match r.users.get(&req.user) {
+        Some(a) => a,
+        None => return HttpResponse::NotFound().body("not found user"),
+    };
 
-            r.users.get_mut(&req.user).map(|u| {
-                *u = SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs()
-            });
-            Ok(msgs)
-        })
-        .unwrap();
+    let new_time_user = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
 
+    let msgs = r
+        .messages
+        .iter()
+        .filter(|(_, t)| t > time_user)
+        .map(|(msg, _)| msg.clone())
+        .collect::<Vec<Message>>();
+
+    r.users.get_mut(&req.user).map(|u| *u = new_time_user);
     HttpResponse::Ok().body(serde_json::to_string(&msgs).unwrap())
 }
 
